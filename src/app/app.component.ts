@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import axios from 'axios';
 
 @Component({
   selector: 'app-root',
@@ -14,7 +15,7 @@ import { CommonModule } from '@angular/common';
 export class AppComponent {
   url: string = '';
   scrapedContent: string = '';
-  downloadedImages: string[] = [];
+  imageUrls: string[] = [];
   scrapeSuccess: boolean = false;
   clipboardMessage: string = '';
   loading: boolean = false;
@@ -22,23 +23,88 @@ export class AppComponent {
   private http = inject(HttpClient);
   private clipboard = inject(Clipboard);
 
-  scrapeWebsite() {
+  async scrapeWebsite() {
     this.loading = true;
-    this.http.post<any>('http://localhost:3000/scrape', { url: this.url }).subscribe(
-      (response) => {
-        this.scrapedContent = response.content;
-        this.downloadedImages = response.images;
-        this.scrapeSuccess = true;
-        this.clipboardMessage = 'Scraping completed';
-        this.loading = false;
-      },
-      (error) => {
-        console.error('Error:', error);
-        this.scrapeSuccess = false;
-        this.clipboardMessage = 'Error occurred while scraping';
-        this.loading = false;
+    try {
+      const response = await axios.get(`https://corsproxy.io/?${encodeURIComponent(this.url)}`, {
+        headers: {
+          'Accept': 'text/html'
+        }
+      });
+      
+      const html = response.data;
+      
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      const mainContent = doc.querySelector('main');
+      if (mainContent) {
+        const h1Content = mainContent.querySelector('h1.post-title')?.outerHTML || '';
+        const articleContent = mainContent.querySelector('article')?.innerHTML || '';
+        
+        let combinedContent = h1Content + articleContent;
+        
+        // Text replacement
+        combinedContent = combinedContent.replace(/\b(?<!Manage My )Nightlife\b/g, "AMS Nightlife");
+        
+        this.scrapedContent = combinedContent;
+        
+        // Extract main image
+        const mainImage = mainContent.querySelector('img.wp-post-image') || 
+                          mainContent.querySelector('article img') ||
+                          doc.querySelector('img');
+
+        let mainImageSrc = '';
+        if (mainImage) {
+          const src = mainImage.getAttribute('src') || mainImage.getAttribute('data-src');
+          if (src && src.startsWith('http')) {
+            mainImageSrc = src;
+            console.log(`Found main image: ${src}`);
+          } else {
+            console.log('Main image found but src is invalid');
+          }
+        } else {
+          console.log('No main image found');
+        }
+
+        // Extract other images
+        const figureImages = Array.from(mainContent.querySelectorAll('figure img')).map(img => 
+          img.getAttribute('data-src') || img.getAttribute('src') || ''
+        );
+
+        // Create a Set to store unique image URLs
+        const uniqueImageUrls = new Set<string>();
+
+        // Add main image if it exists
+        if (mainImageSrc) {
+          uniqueImageUrls.add(mainImageSrc);
+        }
+
+        // Add figure images
+        figureImages.forEach(src => {
+          if (src.startsWith('http')) {
+            uniqueImageUrls.add(src);
+          }
+        });
+
+        // Convert Set to Array and apply CORS proxy
+        this.imageUrls = Array.from(uniqueImageUrls)
+          .map(src => `https://corsproxy.io/?${encodeURIComponent(src)}`);
+
+        console.log(`Found ${this.imageUrls.length} unique valid images in total`);
+      } else {
+        throw new Error('Main content not found');
       }
-    );
+      
+      this.scrapeSuccess = true;
+      this.clipboardMessage = 'Scraping completed';
+    } catch (error) {
+      console.error('Error:', error);
+      this.scrapeSuccess = false;
+      this.clipboardMessage = 'Error occurred while scraping';
+    } finally {
+      this.loading = false;
+    }
   }
 
   copyHtmlToClipboard() {
@@ -47,32 +113,24 @@ export class AppComponent {
   }
 
   downloadAllImages() {
-    const downloadPromises = this.downloadedImages.map(imageName =>
-      this.http.get(`http://localhost:3000/downloads/${imageName}`, { responseType: 'blob' })
-        .toPromise()
+    this.imageUrls.forEach((url) => {
+      fetch(url)
+        .then(response => response.blob())
         .then(blob => {
-          if (blob) {
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = imageName;
-            link.click();
-            window.URL.revokeObjectURL(url);
-          } else {
-            console.error(`Failed to download ${imageName}: Blob is undefined`);
-          }
-        })
-    );
-
-    Promise.all(downloadPromises).then(() => {
-      this.http.post('http://localhost:3000/delete-images', { images: this.downloadedImages })
-        .subscribe(
-          () => {
-            console.log('Images deleted from server');
-            this.downloadedImages = [];
-          },
-          error => console.error('Error deleting images:', error)
-        );
+          const blobUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          
+          // Extract filename from URL
+          const decodedUrl = decodeURIComponent(url);
+          const filename = decodedUrl.substring(decodedUrl.lastIndexOf('/') + 1);
+          link.download = filename;
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        });
     });
   }
 }

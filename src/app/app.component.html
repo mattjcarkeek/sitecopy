@@ -16,7 +16,7 @@
     <button class="button" (click)="copyHtmlToClipboard()">Copy HTML to Clipboard</button>
     <button class="button" (click)="downloadAllImages()">Download All Images</button>
     <div class="image-grid">
-      <img *ngFor="let image of downloadedImages" [src]="'http://localhost:3000/downloads/' + image" alt="Scraped image">
+      <img *ngFor="let image of imageUrls" [src]="image" alt="Scraped image">
     </div>
   </div>
 </div>
