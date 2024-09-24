@@ -133,4 +133,8 @@ export class AppComponent {
         });
     });
   }
+
+  resetPage() {
+    window.location.reload();
+  }
 }
