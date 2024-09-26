@@ -101,3 +101,27 @@
     100% { transform: rotate(360deg); }
   }
   
+  /* ... (existing styles) */
+  
+  .video-url-box {
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #112333;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .video-url-box:hover {
+    background-color: #1e3d5c;
+  }
+  
+  .video-url-box span {
+    text-align: center;
+    padding: 10px;
+  }
+  

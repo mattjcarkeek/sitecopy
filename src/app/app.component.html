@@ -18,6 +18,9 @@
     <button class="button" (click)="resetPage()">Reset</button>
     <div class="image-grid">
       <img *ngFor="let image of imageUrls" [src]="image" alt="Scraped image">
+      <div *ngIf="videoUrl" class="video-url-box" (click)="copyVideoUrl()">
+        <span>Copy Video URL</span>
+      </div>
     </div>
   </div>
 </div>
