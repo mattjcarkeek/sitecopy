@@ -87,8 +87,11 @@ export class AppComponent {
 
         console.log(`Found ${this.imageUrls.length} unique valid images in total`);
 
+        // Search for iframes (Vimeo videos)
         const iframes = doc.querySelectorAll('iframe');
+        // Search for all video elements
         const videos = doc.querySelectorAll('video');
+        
         this.videoUrls = [];
 
         iframes.forEach(iframe => {
@@ -103,8 +106,18 @@ export class AppComponent {
 
         videos.forEach(video => {
           const dataSrc = video.getAttribute('data-src');
+          const src = video.getAttribute('src');
+          const sourceElement = video.querySelector('source');
+          const sourceSrc = sourceElement ? sourceElement.getAttribute('src') : null;
+
           if (dataSrc) {
             this.videoUrls.push({ type: 'wordpress', url: dataSrc });
+          }
+          if (src) {
+            this.videoUrls.push({ type: 'wordpress', url: src });
+          }
+          if (sourceSrc) {
+            this.videoUrls.push({ type: 'wordpress', url: sourceSrc });
           }
         });
 
