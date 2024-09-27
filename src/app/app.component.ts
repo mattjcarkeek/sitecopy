@@ -19,7 +19,7 @@ export class AppComponent {
   scrapeSuccess: boolean = false;
   clipboardMessage: string = '';
   loading: boolean = false;
-  videoUrl: string = '';
+  videoUrls: string[] = [];
 
   private http = inject(HttpClient);
   private clipboard = inject(Clipboard);
@@ -94,14 +94,21 @@ export class AppComponent {
 
         console.log(`Found ${this.imageUrls.length} unique valid images in total`);
 
-        // Extract video URL
-        const iframe = doc.querySelector('iframe.lazyload');
-        if (iframe) {
-          const dataSrc = iframe.getAttribute('data-src');
-          if (dataSrc) {
-            this.videoUrl = this.transformUrl(dataSrc);
+        // Extract video URLs
+        const iframes = doc.querySelectorAll('iframe');
+        this.videoUrls = [];
+
+        iframes.forEach(iframe => {
+          const src = iframe.getAttribute('src') || iframe.getAttribute('data-src');
+          if (src) {
+            const transformedUrl = this.transformUrl(src);
+            if (transformedUrl) {
+              this.videoUrls.push(transformedUrl);
+            }
           }
-        }
+        });
+
+        console.log(`Found ${this.videoUrls.length} video URLs`);
       } else {
         throw new Error('Main content not found');
       }
@@ -149,18 +156,16 @@ export class AppComponent {
   }
 
   private transformUrl(url: string): string {
-    const regex = /https:\/\/player\.vimeo\.com\/video\/(\d+)\?h=([^&]+)/;
+    const regex = /https:\/\/player\.vimeo\.com\/video\/(\d+)(?:\?h=([^&]+))?/;
     const match = url.match(regex);
     if (match) {
-      return `https://vimeo.com/${match[1]}/${match[2]}`;
+      return `https://vimeo.com/${match[1]}${match[2] ? '/' + match[2] : ''}`;
     }
     return '';
   }
 
-  copyVideoUrl() {
-    if (this.videoUrl) {
-      this.clipboard.copy(this.videoUrl);
-      this.clipboardMessage = 'Video URL copied to clipboard';
-    }
+  copyVideoUrl(url: string) {
+    this.clipboard.copy(url);
+    this.clipboardMessage = 'Video URL copied to clipboard';
   }
 }
