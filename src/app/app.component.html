@@ -18,8 +18,12 @@
     <button class="button" (click)="resetPage()">Reset</button>
     <div class="image-grid">
       <img *ngFor="let image of imageUrls" [src]="image" alt="Scraped image">
-      <div *ngFor="let videoUrl of videoUrls; let i = index" class="video-url-box" (click)="copyVideoUrl(videoUrl)">
-        <span>Copy Video {{i + 1}} URL</span>
+      <div *ngFor="let video of videoUrls; let i = index" 
+           [ngClass]="{'video-url-box': true, 'vimeo-box': video.type === 'vimeo', 'wordpress-box': video.type === 'wordpress'}"
+           (click)="video.type === 'vimeo' ? copyVideoUrl(video.url) : openWordPressVideo(video.url)">
+        <span>
+          {{ video.type === 'vimeo' ? 'Copy Vimeo ' + (i + 1) + ' URL' : 'Open Video ' + (i + 1) }}
+        </span>
       </div>
     </div>
   </div>

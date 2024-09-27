@@ -19,7 +19,7 @@ export class AppComponent {
   scrapeSuccess: boolean = false;
   clipboardMessage: string = '';
   loading: boolean = false;
-  videoUrls: string[] = [];
+  videoUrls: { type: 'vimeo' | 'wordpress', url: string }[] = [];
 
   private http = inject(HttpClient);
   private clipboard = inject(Clipboard);
@@ -45,12 +45,10 @@ export class AppComponent {
         
         let combinedContent = h1Content + articleContent;
         
-        // Text replacement
         combinedContent = combinedContent.replace(/\b(?<!Manage My )Nightlife\b/g, "AMS Nightlife");
         
         this.scrapedContent = combinedContent;
         
-        // Extract main image
         const mainImage = mainContent.querySelector('img.wp-post-image') || 
                           mainContent.querySelector('article img') ||
                           doc.querySelector('img');
@@ -68,34 +66,29 @@ export class AppComponent {
           console.log('No main image found');
         }
 
-        // Extract other images
         const figureImages = Array.from(mainContent.querySelectorAll('figure img')).map(img => 
           img.getAttribute('data-src') || img.getAttribute('src') || ''
         );
 
-        // Create a Set to store unique image URLs
         const uniqueImageUrls = new Set<string>();
 
-        // Add main image if it exists
         if (mainImageSrc) {
           uniqueImageUrls.add(mainImageSrc);
         }
 
-        // Add figure images
         figureImages.forEach(src => {
           if (src.startsWith('http')) {
             uniqueImageUrls.add(src);
           }
         });
 
-        // Convert Set to Array and apply CORS proxy
         this.imageUrls = Array.from(uniqueImageUrls)
           .map(src => `https://corsproxy.io/?${encodeURIComponent(src)}`);
 
         console.log(`Found ${this.imageUrls.length} unique valid images in total`);
 
-        // Extract video URLs
         const iframes = doc.querySelectorAll('iframe');
+        const videos = doc.querySelectorAll('video');
         this.videoUrls = [];
 
         iframes.forEach(iframe => {
@@ -103,8 +96,15 @@ export class AppComponent {
           if (src) {
             const transformedUrl = this.transformUrl(src);
             if (transformedUrl) {
-              this.videoUrls.push(transformedUrl);
+              this.videoUrls.push({ type: 'vimeo', url: transformedUrl });
             }
+          }
+        });
+
+        videos.forEach(video => {
+          const dataSrc = video.getAttribute('data-src');
+          if (dataSrc) {
+            this.videoUrls.push({ type: 'wordpress', url: dataSrc });
           }
         });
 
@@ -138,7 +138,6 @@ export class AppComponent {
           const link = document.createElement('a');
           link.href = blobUrl;
           
-          // Extract filename from URL
           const decodedUrl = decodeURIComponent(url);
           const filename = decodedUrl.substring(decodedUrl.lastIndexOf('/') + 1);
           link.download = filename;
@@ -167,5 +166,9 @@ export class AppComponent {
   copyVideoUrl(url: string) {
     this.clipboard.copy(url);
     this.clipboardMessage = 'Video URL copied to clipboard';
+  }
+
+  openWordPressVideo(url: string) {
+    window.open(url, '_blank');
   }
 }
